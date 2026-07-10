@@ -1,0 +1,35 @@
+# ── Powerlevel10k instant prompt (muss ganz oben bleiben) ──
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="powerlevel10k/powerlevel10k"
+
+plugins=(
+  git
+  npm
+  node
+  docker
+  sudo
+  z
+  extract
+  zsh-autosuggestions
+  zsh-syntax-highlighting
+)
+
+source "$ZSH/oh-my-zsh.sh"
+
+# ── Aliases ──
+alias containernames='docker ps --format "{{.Names}}"'
+
+# ── nvm (nur laden, wenn vorhanden) ──
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# ── Prompt-Konfiguration ──
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# ── Maschinenspezifisches, nicht versioniert ──
+[[ ! -f ~/.zshrc.local ]] || source ~/.zshrc.local
