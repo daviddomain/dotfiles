@@ -18,6 +18,12 @@ plugins=(
   zsh-syntax-highlighting
 )
 
+# ── History-Persistenz im Devcontainer (nutzt das bereits gemountete .claude-Volume) ──
+if [[ -f /.dockerenv && -d "$HOME/.claude" && -w "$HOME/.claude" ]]; then
+  export HISTFILE="$HOME/.claude/.shell/zsh_history"
+  [[ -d "${HISTFILE:h}" ]] || mkdir -p "${HISTFILE:h}"
+fi
+
 source "$ZSH/oh-my-zsh.sh"
 
 # ── Aliases ──
