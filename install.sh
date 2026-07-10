@@ -67,25 +67,40 @@ if [[ -f /.dockerenv && -d "$HOME/.claude" ]]; then
   fi
 fi
 
-# ── Claude Code Onboarding-Prompt überspringen (nur im Devcontainer) ──
+# ── Claude Code Onboarding + Trust-Prompt überspringen (nur im Devcontainer) ──
 # ~/.claude.json liegt NICHT im .claude-Volume, wird also bei jedem Rebuild neu erzeugt.
-# Deshalb setzen wir die "schon erledigt"-Flag bei jedem Create frisch.
+# Deshalb setzen wir die Flags bei jedem Create frisch.
 if [[ -f /.dockerenv ]]; then
   ccjson="$HOME/.claude.json"
   [[ -f "$ccjson" ]] || echo '{}' > "$ccjson"
+
+  # Workspace-Pfad zur Laufzeit bestimmen (Trust-Prompt ist projekt-spezifisch)
+  workspace=""
+  for d in /workspaces/*/; do
+    [[ -d "$d" ]] && workspace="${d%/}" && break
+  done
+
   if command -v jq >/dev/null 2>&1; then
     tmp="$(mktemp)"
-    jq '.hasCompletedOnboarding = true' "$ccjson" > "$tmp" && mv "$tmp" "$ccjson"
+    if [[ -n "$workspace" ]]; then
+      jq --arg ws "$workspace" '
+        .hasCompletedOnboarding = true
+        | .projects[$ws].hasTrustDialogAccepted = true
+      ' "$ccjson" > "$tmp" && mv "$tmp" "$ccjson"
+    else
+      jq '.hasCompletedOnboarding = true' "$ccjson" > "$tmp" && mv "$tmp" "$ccjson"
+    fi
   else
     node -e '
       const fs=require("fs");
-      const p=process.argv[1];
+      const [p,ws]=process.argv.slice(1);
       const o=JSON.parse(fs.readFileSync(p,"utf8")||"{}");
       o.hasCompletedOnboarding=true;
+      if(ws){o.projects=o.projects||{};o.projects[ws]=o.projects[ws]||{};o.projects[ws].hasTrustDialogAccepted=true;}
       fs.writeFileSync(p,JSON.stringify(o,null,2)+"\n");
-    ' "$ccjson"
+    ' "$ccjson" "$workspace"
   fi
-  log "claude onboarding-flag gesetzt"
+  log "claude onboarding + trust gesetzt"
 fi
 
 log "fertig"
