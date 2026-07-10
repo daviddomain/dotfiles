@@ -44,4 +44,27 @@ link() {
 link "$DOTFILES/zsh/zshrc"    "$HOME/.zshrc"
 link "$DOTFILES/zsh/p10k.zsh" "$HOME/.p10k.zsh"
 
+# ── Claude Code settings mergen (nur im Devcontainer) ──
+if [[ -f /.dockerenv && -d "$HOME/.claude" ]]; then
+  fragment="$DOTFILES/claude/settings.json"
+  target="$HOME/.claude/settings.json"
+  if [[ -f "$fragment" ]]; then
+    [[ -f "$target" ]] || echo '{}' > "$target"
+    if command -v jq >/dev/null 2>&1; then
+      tmp="$(mktemp)"
+      jq -s '.[0] * .[1]' "$target" "$fragment" > "$tmp" && mv "$tmp" "$target"
+    else
+      node -e '
+        const fs=require("fs");
+        const [t,f]=process.argv.slice(1);
+        const deep=(a,b)=>{for(const k of Object.keys(b)){a[k]=(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==="object")?deep(a[k],b[k]):b[k];}return a;};
+        const base=JSON.parse(fs.readFileSync(t,"utf8")||"{}");
+        const frag=JSON.parse(fs.readFileSync(f,"utf8"));
+        fs.writeFileSync(t,JSON.stringify(deep(base,frag),null,2)+"\n");
+      ' "$target" "$fragment"
+    fi
+    log "claude settings gemerged"
+  fi
+fi
+
 log "fertig"
