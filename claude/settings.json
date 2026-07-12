@@ -1,6 +1,6 @@
 {
   "autoUpdatesChannel": "stable",
   "permissions": {
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "acceptEdits"
   }
 }

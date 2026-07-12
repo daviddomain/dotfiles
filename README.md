@@ -31,11 +31,30 @@ VS Code Dev Containers klont dieses Repository über die User Settings nach
 
 ## Sicherheitsrelevante Claude-Einstellungen
 
-`claude/settings.json` aktiviert bewusst `bypassPermissions`. Dadurch kann
-Claude Code Befehle ohne einzelne Bestätigung ausführen. Der tatsächliche
-Wirkungsbereich hängt von den im Container verfügbaren Ressourcen, Diensten und
-Anmeldedaten ab. Der Modus ist daher mit weitreichendem Zugriff auf die lokale
-Entwicklungsumgebung gleichzusetzen.
+`claude/settings.json` setzt `acceptEdits` als persönlichen Standard. Claude Code
+darf damit Dateien im Arbeitsverzeichnis sowie übliche Dateisystemoperationen
+ohne einzelne Bestätigung ausführen. Andere Shell-, Netzwerk- und
+Infrastrukturaktionen durchlaufen weiterhin die Berechtigungsprüfung.
+
+Für eine bewusst autonom gestartete Sitzung kann bei unterstütztem Konto,
+Provider und Modell der Auto-Modus verwendet werden:
+
+```bash
+CLAUDE_CODE_ENABLE_AUTO_MODE=1 claude --permission-mode auto
+```
+
+Der Auto-Modus prüft Aktionen mit einem separaten Sicherheitsklassifikator,
+garantiert aber keine Sicherheit. `bypassPermissions` bleibt ausschließlich ein
+expliziter Ausnahmefall:
+
+```bash
+claude --permission-mode bypassPermissions
+```
+
+Dieser Modus überspringt nahezu alle Berechtigungs- und Sicherheitsprüfungen.
+Er ist insbesondere ungeeignet, wenn der Container auf persistente Credentials,
+schreibbare Host-Mounts, den Docker-Daemon oder ein unbeschränktes Netzwerk
+zugreifen kann. Deshalb gibt es dafür bewusst keinen Alias.
 
 Das Setzen von Onboarding- und Workspace-Trust-Flags in `~/.claude.json` nutzt
 internen, nicht als stabile API dokumentierten Claude-Code-App-State. Es bleibt
