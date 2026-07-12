@@ -1,7 +1,7 @@
 # Personal dotfiles
 
-Persönliche Shell- und Claude-Code-Konfiguration für Ubuntu/WSL und die
-SpielerPlus-Devcontainer. Projekt-Repositories werden dadurch nicht verändert.
+Persönliche Shell- und Claude-Code-Konfiguration für Ubuntu/WSL und
+teamverwaltete Devcontainer. Projekt-Repositories werden dadurch nicht verändert.
 
 ## Installation
 
@@ -31,10 +31,11 @@ VS Code Dev Containers klont dieses Repository über die User Settings nach
 
 ## Sicherheitsrelevante Claude-Einstellungen
 
-`claude/settings.json` aktiviert bewusst `bypassPermissions`. In den
-SpielerPlus-Containern besteht zusätzlich Zugriff auf den Docker-Daemon und auf
-den persistenten GitHub-Login. Der Modus ist daher funktional mit weitreichendem
-Zugriff auf die lokale Entwicklungsumgebung gleichzusetzen.
+`claude/settings.json` aktiviert bewusst `bypassPermissions`. Dadurch kann
+Claude Code Befehle ohne einzelne Bestätigung ausführen. Der tatsächliche
+Wirkungsbereich hängt von den im Container verfügbaren Ressourcen, Diensten und
+Anmeldedaten ab. Der Modus ist daher mit weitreichendem Zugriff auf die lokale
+Entwicklungsumgebung gleichzusetzen.
 
 Das Setzen von Onboarding- und Workspace-Trust-Flags in `~/.claude.json` nutzt
 internen, nicht als stabile API dokumentierten Claude-Code-App-State. Es bleibt
@@ -50,4 +51,4 @@ Trust-Eintrag erzeugt.
 ## Updates
 
 Upstream-Revisionen in `versions.env` nur bewusst aktualisieren und danach das
-Setup in WSL sowie mindestens einem Node- und einem PHP-Devcontainer testen.
+Setup in WSL sowie in repräsentativen Devcontainern testen.
