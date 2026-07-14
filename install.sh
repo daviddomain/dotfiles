@@ -189,8 +189,11 @@ detect_single_workspace() {
   printf '%s\n' "${workspaces[0]}"
 }
 
-seed_claude_app_state() {
-  local target="$1" workspace="${2:-}" tmp
+update_claude_app_state() {
+  local target="$1" seed_onboarding="$2" seed_trust="$3" workspace="${4:-}" tmp
+  if [[ "$seed_trust" == "1" && -z "$workspace" ]]; then
+    die "Workspace-Trust benötigt einen eindeutig erkannten Workspace."
+  fi
   prepare_json_target "$target"
   tmp="$(mktemp "${target}.tmp.XXXXXX")"
 
@@ -199,47 +202,48 @@ seed_claude_app_state() {
       rm -f "$tmp"
       die "Ungültiges JSON in $target."
     fi
-    if [[ -n "$workspace" ]]; then
-      if ! jq --arg workspace "$workspace" '
-        .hasCompletedOnboarding = true
-        | .projects[$workspace].hasTrustDialogAccepted = true
+    if ! jq \
+      --arg workspace "$workspace" \
+      --arg seed_onboarding "$seed_onboarding" \
+      --arg seed_trust "$seed_trust" '
+        if $seed_onboarding == "1" then
+          .hasCompletedOnboarding = true
+        else . end
+        | if $seed_trust == "1" then
+          .projects[$workspace].hasTrustDialogAccepted = true
+        else . end
       ' "$target" > "$tmp"; then
-        rm -f "$tmp"
-        die "Claude-App-State konnte nicht aktualisiert werden."
-      fi
-    else
-      if ! jq '.hasCompletedOnboarding = true' "$target" > "$tmp"; then
-        rm -f "$tmp"
-        die "Claude-App-State konnte nicht aktualisiert werden."
-      fi
+      rm -f "$tmp"
+      die "Claude-App-State konnte nicht aktualisiert werden."
     fi
   elif command -v node >/dev/null 2>&1; then
     if ! node -e '
       const fs = require("fs");
-      const [target, workspace] = process.argv.slice(1);
+      const [target, seedOnboarding, seedTrust, workspace] = process.argv.slice(1);
       const state = JSON.parse(fs.readFileSync(target, "utf8") || "{}");
-      state.hasCompletedOnboarding = true;
-      if (workspace) {
+      if (seedOnboarding === "1") state.hasCompletedOnboarding = true;
+      if (seedTrust === "1") {
         state.projects ||= {};
         state.projects[workspace] ||= {};
         state.projects[workspace].hasTrustDialogAccepted = true;
       }
       process.stdout.write(JSON.stringify(state, null, 2) + "\n");
-    ' "$target" "$workspace" > "$tmp"; then
+    ' "$target" "$seed_onboarding" "$seed_trust" "$workspace" > "$tmp"; then
       rm -f "$tmp"
       die "Claude-App-State konnte nicht aktualisiert werden."
     fi
   elif command -v python3 >/dev/null 2>&1; then
     if ! python3 -c '
 import json, sys
-target, workspace = sys.argv[1:]
+target, seed_onboarding, seed_trust, workspace = sys.argv[1:]
 with open(target, encoding="utf-8") as handle:
     state = json.load(handle)
-state["hasCompletedOnboarding"] = True
-if workspace:
+if seed_onboarding == "1":
+    state["hasCompletedOnboarding"] = True
+if seed_trust == "1":
     state.setdefault("projects", {}).setdefault(workspace, {})["hasTrustDialogAccepted"] = True
 print(json.dumps(state, indent=2))
-    ' "$target" "$workspace" > "$tmp"; then
+    ' "$target" "$seed_onboarding" "$seed_trust" "$workspace" > "$tmp"; then
       rm -f "$tmp"
       die "Claude-App-State konnte nicht aktualisiert werden."
     fi
@@ -272,17 +276,46 @@ if is_devcontainer && command -v claude >/dev/null 2>&1; then
   fi
 
   # ~/.claude.json ist interner Claude-Code-App-State, keine stabile Settings-API.
-  # Der bisherige Komfort bleibt standardmäßig aktiv, kann aber pro Aufruf deaktiviert werden:
-  # DOTFILES_SEED_CLAUDE_APP_STATE=0 ./install.sh
-  if [[ "${DOTFILES_SEED_CLAUDE_APP_STATE:-1}" == "1" ]]; then
+  # Onboarding und Workspace-Trust bleiben deshalb ohne ausdrückliches Opt-in unverändert.
+  seed_onboarding="${DOTFILES_SEED_CLAUDE_ONBOARDING:-0}"
+  accept_workspace_trust="${DOTFILES_ACCEPT_CLAUDE_WORKSPACE_TRUST:-0}"
+
+  case "$seed_onboarding" in
+    0|1) ;;
+    *) die "DOTFILES_SEED_CLAUDE_ONBOARDING muss 0 oder 1 sein." ;;
+  esac
+  case "$accept_workspace_trust" in
+    0|1) ;;
+    *) die "DOTFILES_ACCEPT_CLAUDE_WORKSPACE_TRUST muss 0 oder 1 sein." ;;
+  esac
+
+  if [[ -n "${DOTFILES_SEED_CLAUDE_APP_STATE+x}" ]]; then
+    warn "DOTFILES_SEED_CLAUDE_APP_STATE ist veraltet und wird ignoriert; nutze die getrennten Opt-ins."
+  fi
+
+  workspace=""
+  if [[ "$accept_workspace_trust" == "1" ]]; then
     workspace="$(detect_single_workspace || true)"
     if [[ -z "$workspace" ]]; then
-      warn "Workspace nicht eindeutig; setze nur das Onboarding-Flag, keinen Trust-Eintrag."
+      warn "Workspace-Trust ausdrücklich angefordert, aber Workspace nicht eindeutig; Trust bleibt unverändert."
+      accept_workspace_trust=0
     fi
-    seed_claude_app_state "$HOME/.claude.json" "$workspace"
-    log "claude onboarding${workspace:+ + trust für $workspace} gesetzt"
+  fi
+
+  if [[ "$seed_onboarding" == "1" || "$accept_workspace_trust" == "1" ]]; then
+    update_claude_app_state \
+      "$HOME/.claude.json" \
+      "$seed_onboarding" \
+      "$accept_workspace_trust" \
+      "$workspace"
+    if [[ "$seed_onboarding" == "1" ]]; then
+      log "claude onboarding ausdrücklich gesetzt"
+    fi
+    if [[ "$accept_workspace_trust" == "1" ]]; then
+      log "claude workspace-trust ausdrücklich für $workspace gesetzt"
+    fi
   else
-    log "claude app-state unverändert (DOTFILES_SEED_CLAUDE_APP_STATE=0)"
+    log "claude app-state unverändert (kein Opt-in aktiviert)"
   fi
 fi
 

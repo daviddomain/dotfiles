@@ -57,15 +57,23 @@ schreibbare Host-Mounts, den Docker-Daemon oder ein unbeschränktes Netzwerk
 zugreifen kann. Deshalb gibt es dafür bewusst keinen Alias.
 
 Das Setzen von Onboarding- und Workspace-Trust-Flags in `~/.claude.json` nutzt
-internen, nicht als stabile API dokumentierten Claude-Code-App-State. Es bleibt
-für den bisherigen Komfort standardmäßig aktiv, lässt sich aber abschalten:
+internen, nicht als stabile API dokumentierten Claude-Code-App-State. Der
+Installer verändert diesen State deshalb standardmäßig nicht. Beide
+Automatisierungen lassen sich getrennt und ausdrücklich aktivieren:
 
 ```bash
-DOTFILES_SEED_CLAUDE_APP_STATE=0 ./install.sh
+# Nur Welcome-/Onboarding-Dialog überspringen
+DOTFILES_SEED_CLAUDE_ONBOARDING=1 ./install.sh
+
+# Workspace-Trust für genau einen erkannten Workspace automatisch akzeptieren
+DOTFILES_ACCEPT_CLAUDE_WORKSPACE_TRUST=1 ./install.sh
 ```
 
-Bei keinem oder mehreren Verzeichnissen unter `/workspaces` wird kein
-Trust-Eintrag erzeugt.
+Workspace-Trust sollte normalerweise im Claude-Dialog bewusst bestätigt
+werden. Das zweite Opt-in ist nur für einen bereits geprüften Workspace
+gedacht. Bei keinem oder mehreren Verzeichnissen unter `/workspaces` wird auch
+mit Opt-in kein Trust-Eintrag erzeugt. Beide Opt-ins können bei Bedarf in einem
+Aufruf kombiniert werden.
 
 ## Updates
 
