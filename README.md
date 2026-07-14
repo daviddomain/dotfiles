@@ -77,5 +77,31 @@ Aufruf kombiniert werden.
 
 ## Updates
 
-Upstream-Revisionen in `versions.env` nur bewusst aktualisieren und danach das
-Setup in WSL sowie in repräsentativen Devcontainern testen.
+Die Upstream-Repositories bleiben über vollständige Commit-SHAs in
+`versions.env` reproduzierbar gepinnt. Einmal monatlich sowie anlassbezogen bei
+Sicherheits-, Kompatibilitäts- oder Fehlerkorrekturen nach neuen Revisionen
+suchen:
+
+```bash
+./check-versions.sh
+```
+
+Der Befehl fragt nur die aktuellen Commits der jeweiligen
+Upstream-Default-Branches ab. Er zeigt Abweichungen, Vergleichslinks und mögliche
+neue Werte an, verändert aber weder `versions.env` noch installierte
+Komponenten.
+
+Neue Revisionen kontrolliert übernehmen:
+
+1. Die verlinkten Upstream-Änderungen und gegebenenfalls Release Notes prüfen.
+2. Nur bewusst ausgewählte, vollständige Commit-SHAs manuell in `versions.env`
+   eintragen und den Diff kontrollieren.
+3. Vor Container-Tests den Working Tree des verwendeten Projekt-Repositories
+   prüfen. Dort keine Dateien oder Git-Einstellungen verändern.
+4. In WSL sowie je einem repräsentativen Node- und PHP-Devcontainer jeweils
+   `./install.sh` zweimal und danach `./doctor.sh` ausführen.
+5. Nach den Tests erneut bestätigen, dass die untersuchten Projekt-Repositories
+   unverändert sind. Erst dann die Dotfiles-Änderung committen und veröffentlichen.
+
+Eine gefundene Revision ist nur ein Prüf-Kandidat. Sie wird erst nach Sichtung
+der Änderungen und erfolgreichen Tests zur neuen bekannten guten Revision.
