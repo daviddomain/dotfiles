@@ -28,6 +28,23 @@ VS Code Dev Containers klont dieses Repository über die User Settings nach
   wenn `~/.claude` in einem Devcontainer ein echter beschreibbarer Mount ist.
 - In Devcontainern mit installierter Claude CLI wird das versionierte Fragment
   in `~/.claude/settings.json` gemergt.
+- Persoenliche Skills und Agents werden konfliktgeschuetzt kopiert; Rules und
+  Hook-Skripte werden pro Eintrag nach `~/.claude` verlinkt. Bestehende fremde
+  Inhalte werden dabei niemals automatisch ersetzt.
+
+## Portable Claude-Erweiterungen
+
+Die optionale Struktur unter `claude/skills`, `claude/agents`, `claude/rules`
+und `claude/hooks` ist die oeffentliche Single Source of Truth. Da die aktuell
+unterstuetzten Claude-Code-Versionen Symlinks nicht fuer jeden Erweiterungstyp
+garantieren, verwendet `install.sh` bewusst ein Hybridverfahren. Verwaltete
+Kopien erhalten lokale Pruefsummen; lokale Abweichungen fuehren zu einem
+Konflikt statt zu einem stillen Ueberschreiben.
+
+Hook-Registrierungen koennen separat in `claude/hooks.json` liegen. Dieses
+Fragment darf ausschliesslich den `hooks`-Schluessel enthalten und wird nur
+gemergt, wenn bestehende Hook-Ereignisse nicht kollidieren. Details und die
+oeffentliche Sicherheitspruefung stehen in [claude/README.md](claude/README.md).
 
 ## Sicherheitsrelevante Claude-Einstellungen
 

@@ -4,6 +4,8 @@ set -uo pipefail
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=versions.env
 source "$DOTFILES/versions.env"
+# shellcheck source=claude/extensions.sh
+source "$DOTFILES/claude/extensions.sh"
 
 failures=0
 ok()   { printf '\033[1;32m[ok]\033[0m %s\n' "$*"; }
@@ -48,6 +50,20 @@ check_revision oh-my-zsh "$HOME/.oh-my-zsh" "$OH_MY_ZSH_REF"
 check_revision powerlevel10k "$HOME/.oh-my-zsh/custom/themes/powerlevel10k" "$POWERLEVEL10K_REF"
 check_revision zsh-autosuggestions "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" "$ZSH_AUTOSUGGESTIONS_REF"
 check_revision zsh-syntax-highlighting "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" "$ZSH_SYNTAX_HIGHLIGHTING_REF"
+
+if claude_extensions_validate_sources "$DOTFILES/claude"; then
+  ok "versionierte Claude-Erweiterungsquellen sind sicher"
+else
+  fail "versionierte Claude-Erweiterungsquellen sind unsicher oder ungueltig"
+fi
+
+if command -v claude >/dev/null 2>&1; then
+  if claude_extensions_verify "$DOTFILES/claude" "$HOME/.claude"; then
+    ok "persoenliche Claude-Erweiterungen stimmen mit den Dotfiles ueberein"
+  else
+    fail "persoenliche Claude-Erweiterungen fehlen, kollidieren oder weichen ab"
+  fi
+fi
 
 if [[ -f /.dockerenv && -d /workspaces ]]; then
   ok "Devcontainer erkannt"

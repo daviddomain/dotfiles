@@ -7,6 +7,8 @@ CUSTOM="${ZSH_CUSTOM:-$ZSH_DIR/custom}"
 
 # shellcheck source=versions.env
 source "$DOTFILES/versions.env"
+# shellcheck source=claude/extensions.sh
+source "$DOTFILES/claude/extensions.sh"
 
 log()  { printf '\033[1;34m[dotfiles]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[dotfiles:warn]\033[0m %s\n' "$*" >&2; }
@@ -267,55 +269,70 @@ sync_repo zsh-users/zsh-syntax-highlighting "$CUSTOM/plugins/zsh-syntax-highligh
 link_file "$DOTFILES/zsh/zshrc" "$HOME/.zshrc"
 link_file "$DOTFILES/zsh/p10k.zsh" "$HOME/.p10k.zsh"
 
-if is_devcontainer && command -v claude >/dev/null 2>&1; then
+if command -v claude >/dev/null 2>&1; then
+  if ! claude_extensions_preflight "$DOTFILES/claude" "$HOME/.claude"; then
+    die "Claude-Erweiterungen enthalten Konflikte oder unsichere Quellen."
+  fi
+
   mkdir -p "$HOME/.claude"
+  claude_extensions_install "$DOTFILES/claude" "$HOME/.claude" \
+    || die "Claude-Erweiterungen konnten nicht installiert werden."
 
-  if [[ -f "$DOTFILES/claude/settings.json" ]]; then
-    merge_json "$HOME/.claude/settings.json" "$DOTFILES/claude/settings.json"
-    log "claude settings gemerged"
-  fi
-
-  # ~/.claude.json ist interner Claude-Code-App-State, keine stabile Settings-API.
-  # Onboarding und Workspace-Trust bleiben deshalb ohne ausdrückliches Opt-in unverändert.
-  seed_onboarding="${DOTFILES_SEED_CLAUDE_ONBOARDING:-0}"
-  accept_workspace_trust="${DOTFILES_ACCEPT_CLAUDE_WORKSPACE_TRUST:-0}"
-
-  case "$seed_onboarding" in
-    0|1) ;;
-    *) die "DOTFILES_SEED_CLAUDE_ONBOARDING muss 0 oder 1 sein." ;;
-  esac
-  case "$accept_workspace_trust" in
-    0|1) ;;
-    *) die "DOTFILES_ACCEPT_CLAUDE_WORKSPACE_TRUST muss 0 oder 1 sein." ;;
-  esac
-
-  if [[ -n "${DOTFILES_SEED_CLAUDE_APP_STATE+x}" ]]; then
-    warn "DOTFILES_SEED_CLAUDE_APP_STATE ist veraltet und wird ignoriert; nutze die getrennten Opt-ins."
-  fi
-
-  workspace=""
-  if [[ "$accept_workspace_trust" == "1" ]]; then
-    workspace="$(detect_single_workspace || true)"
-    if [[ -z "$workspace" ]]; then
-      warn "Workspace-Trust ausdrücklich angefordert, aber Workspace nicht eindeutig; Trust bleibt unverändert."
-      accept_workspace_trust=0
+  if is_devcontainer; then
+    if [[ -f "$DOTFILES/claude/settings.json" ]]; then
+      merge_json "$HOME/.claude/settings.json" "$DOTFILES/claude/settings.json"
+      log "claude settings gemerged"
     fi
-  fi
 
-  if [[ "$seed_onboarding" == "1" || "$accept_workspace_trust" == "1" ]]; then
-    update_claude_app_state \
-      "$HOME/.claude.json" \
-      "$seed_onboarding" \
-      "$accept_workspace_trust" \
-      "$workspace"
-    if [[ "$seed_onboarding" == "1" ]]; then
-      log "claude onboarding ausdrücklich gesetzt"
+    # ~/.claude.json ist interner Claude-Code-App-State, keine stabile Settings-API.
+    # Onboarding und Workspace-Trust bleiben deshalb ohne ausdrückliches Opt-in unverändert.
+    seed_onboarding="${DOTFILES_SEED_CLAUDE_ONBOARDING:-0}"
+    accept_workspace_trust="${DOTFILES_ACCEPT_CLAUDE_WORKSPACE_TRUST:-0}"
+
+    case "$seed_onboarding" in
+      0|1) ;;
+      *) die "DOTFILES_SEED_CLAUDE_ONBOARDING muss 0 oder 1 sein." ;;
+    esac
+    case "$accept_workspace_trust" in
+      0|1) ;;
+      *) die "DOTFILES_ACCEPT_CLAUDE_WORKSPACE_TRUST muss 0 oder 1 sein." ;;
+    esac
+
+    if [[ -n "${DOTFILES_SEED_CLAUDE_APP_STATE+x}" ]]; then
+      warn "DOTFILES_SEED_CLAUDE_APP_STATE ist veraltet und wird ignoriert; nutze die getrennten Opt-ins."
     fi
+
+    workspace=""
     if [[ "$accept_workspace_trust" == "1" ]]; then
-      log "claude workspace-trust ausdrücklich für $workspace gesetzt"
+      workspace="$(detect_single_workspace || true)"
+      if [[ -z "$workspace" ]]; then
+        warn "Workspace-Trust ausdrücklich angefordert, aber Workspace nicht eindeutig; Trust bleibt unverändert."
+        accept_workspace_trust=0
+      fi
     fi
-  else
-    log "claude app-state unverändert (kein Opt-in aktiviert)"
+
+    if [[ "$seed_onboarding" == "1" || "$accept_workspace_trust" == "1" ]]; then
+      update_claude_app_state \
+        "$HOME/.claude.json" \
+        "$seed_onboarding" \
+        "$accept_workspace_trust" \
+        "$workspace"
+      if [[ "$seed_onboarding" == "1" ]]; then
+        log "claude onboarding ausdrücklich gesetzt"
+      fi
+      if [[ "$accept_workspace_trust" == "1" ]]; then
+        log "claude workspace-trust ausdrücklich für $workspace gesetzt"
+      fi
+    else
+      log "claude app-state unverändert (kein Opt-in aktiviert)"
+    fi
+  fi
+
+  if [[ -f "$DOTFILES/claude/hooks.json" ]]; then
+    merge_json "$HOME/.claude/settings.json" "$DOTFILES/claude/hooks.json"
+    claude_extensions_record_hook_fragment "$DOTFILES/claude/hooks.json" "$HOME/.claude" \
+      || die "Hook-Status konnte nicht gespeichert werden."
+    log "claude hooks konfliktfrei gemerged"
   fi
 fi
 

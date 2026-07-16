@@ -1,2 +1,23 @@
 *.swp
 .DS_Store
+
+# Claude Code runtime and credential data must never enter this public repo.
+claude/.credentials.json
+claude/credentials.json
+claude/history.jsonl
+claude/projects/
+claude/session-env/
+claude/shell-snapshots/
+claude/file-history/
+claude/transcripts/
+claude/plugins/
+claude/cache/
+claude/debug/
+claude/telemetry/
+claude/**/*.jsonl
+claude/**/*.log
+claude/**/*.sqlite
+claude/**/*.sqlite3
+claude/**/*.db
+claude/**/*.pem
+claude/**/*.key
