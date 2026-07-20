@@ -72,3 +72,7 @@ export NVM_DIR="$HOME/.nvm"
 
 # Muss nach allen Widget- und Completion-Integrationen geladen werden.
 source "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+
+# VS Code Remote-Container: Shell-Integration laden, wenn verfügbar.
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+
