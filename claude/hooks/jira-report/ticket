@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Startet einen One-Shot-Ticketlauf mit aktivem Report-Hook.
+#
+#   ticket "<Briefing-Text>"
+#   ticket < briefing.md
+#
+# Prueft vorher, dass der Branch ein Ticket traegt. Ohne Ticket gibt es
+# keinen Ort fuer den Report, also gar nicht erst anfangen.
+set -euo pipefail
+
+WORKSPACE="$(git rev-parse --show-toplevel)"
+branch="$(git -C "$WORKSPACE" rev-parse --abbrev-ref HEAD)"
+
+ENV_FILE="${CLAUDE_HOOK_ENV_FILE:-$HOME/.claude/hook.env}"
+STATE_DIR="${CLAUDE_STATE_DIR:-$HOME/.claude/state}"
+REPORT_DIR="${CLAUDE_REPORT_DIR:-$WORKSPACE/.claude-reports}"
+TICKET_PATTERN="${CLAUDE_TICKET_PATTERN:-[a-z]+-[0-9]+}"
+
+if ! grep -qiE "$TICKET_PATTERN" <<<"$branch"; then
+  echo "Branch '$branch' enthaelt keinen Ticketschluessel." >&2
+  echo "Erwartet wird etwas wie feature/ABC-123-kurzer-titel." >&2
+  exit 1
+fi
+
+ticket="$(grep -oiE "$TICKET_PATTERN" <<<"$branch" | head -n1 | tr '[:lower:]' '[:upper:]')"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Zugangsdaten fehlen: $ENV_FILE" >&2
+  exit 1
+fi
+
+if (( $# > 0 )); then
+  briefing="$*"
+else
+  briefing="$(cat)"
+fi
+
+if [[ -z "${briefing// }" ]]; then
+  echo "Kein Briefing uebergeben." >&2
+  exit 1
+fi
+
+# Alte Blockzaehler und Reports wegraeumen, damit ein neuer Lauf nicht mit
+# dem Stand des vorherigen startet.
+mkdir -p "$STATE_DIR" "$REPORT_DIR"
+rm -f "$STATE_DIR"/*.blocks 2>/dev/null || true
+rm -f "$REPORT_DIR/report.md" 2>/dev/null || true
+
+echo "Ticketlauf $ticket auf Branch $branch"
+
+export CLAUDE_REPORT_HOOK=1
+export CLAUDE_PROJECT_DIR="$WORKSPACE"
+exec claude -p "$briefing"
