@@ -76,3 +76,5 @@ source "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 # VS Code Remote-Container: Shell-Integration laden, wenn verfügbar.
 [[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
 
+# Wrapper fuer einen One-Shot-Ticketlauf, Quelle: claude/hooks/jira-report/ticket
+alias ticket="$HOME/.claude/hooks/jira-report/ticket"
