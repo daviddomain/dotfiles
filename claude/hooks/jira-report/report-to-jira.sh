@@ -32,7 +32,6 @@ mkdir -p "$REPORT_DIR" "$STATE_DIR"
 LOG="$STATE_DIR/hook.log"
 
 log()    { printf '%s %s\n' "$(date -Is)" "$*" >> "$LOG"; }
-notify() { { printf '[report-hook] %s\n' "$*" > /dev/tty; } 2>/dev/null || true; }
 
 input="$(cat)"
 session_id="$(jq -r '.session_id // "nosession"' <<<"$input")"
@@ -65,7 +64,6 @@ read_format() {
   fi
   if (( blocks == 0 )); then
     log "Formatvorgabe fehlt: $FORMAT_FILE - Rueckfall auf Kurzfassung"
-    notify "Formatvorgabe fehlt ($FORMAT_FILE). Es gilt die eingebaute Kurzfassung."
   fi
   cat <<'EOF'
 ## Status
@@ -91,7 +89,6 @@ if [[ -s "$report" ]]; then
   fi
   # Posten fehlgeschlagen: nicht blockieren, aber sichtbar machen.
   log "posten fehlgeschlagen: $out"
-  notify "Report konnte nicht an $ticket gepostet werden."
   jq -n --arg e "$out" '{
     decision: "block",
     reason: ("Der Report konnte nicht an Jira gepostet werden. Fehler: " + $e +
@@ -119,6 +116,5 @@ printf '%s\n' "$last_msg" > "$fallback"
   "AUTOMATISCH ERZEUGT. Der Agent hat trotz $MAX_BLOCKS Aufforderungen keinen strukturierten Report geschrieben. Unten steht seine letzte Nachricht im Wortlaut. Bitte mit Vorsicht lesen, das ist kein geprueftes Ergebnis." \
   >> "$LOG" 2>&1
 log "Notfall-Report an $ticket"
-notify "Kein strukturierter Report. Notfall-Report an $ticket gepostet."
 rm -f "$counter_file"
 exit 0

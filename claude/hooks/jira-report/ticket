@@ -15,6 +15,7 @@ ENV_FILE="${CLAUDE_HOOK_ENV_FILE:-$HOME/.claude/hook.env}"
 STATE_DIR="${CLAUDE_STATE_DIR:-$HOME/.claude/state}"
 REPORT_DIR="${CLAUDE_REPORT_DIR:-$WORKSPACE/.claude-reports}"
 TICKET_PATTERN="${CLAUDE_TICKET_PATTERN:-[a-z]+-[0-9]+}"
+FORMAT_FILE="${CLAUDE_REPORT_FORMAT_FILE:-$HOME/.claude/context/report-format.md}"
 
 if ! grep -qiE "$TICKET_PATTERN" <<<"$branch"; then
   echo "Branch '$branch' enthaelt keinen Ticketschluessel." >&2
@@ -45,6 +46,11 @@ fi
 mkdir -p "$STATE_DIR" "$REPORT_DIR"
 rm -f "$STATE_DIR"/*.blocks 2>/dev/null || true
 rm -f "$REPORT_DIR/report.md" 2>/dev/null || true
+
+if [[ ! -s "$FORMAT_FILE" ]]; then
+  echo "Achtung: Formatvorgabe fehlt ($FORMAT_FILE)." >&2
+  echo "Der Hook faellt auf die eingebaute Kurzfassung zurueck." >&2
+fi
 
 echo "Ticketlauf $ticket auf Branch $branch"
 

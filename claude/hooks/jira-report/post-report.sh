@@ -16,7 +16,35 @@ set -a; . "$ENV_FILE"; set +a
 
 : "${JIRA_BASE_URL:?}" "${JIRA_EMAIL:?}" "${JIRA_API_TOKEN:?}"
 
-text="$(cat "$report_file")"
+# Jira rendert am Kommentar-Endpoint Wiki-Markup, kein Markdown. Der Konverter
+# ist bewusst schmal: nur die vier Faelle, die haeufig durchrutschen. Code-
+# Bloecke bleiben unangetastet.
+to_wiki() {
+  awk '
+    /^```/ {
+      print "{code}"
+      in_code = !in_code
+      next
+    }
+    in_code { print; next }
+    {
+      gsub(/\*\*/, "*")
+      sub(/^#### /, "h5. ")
+      sub(/^### /,  "h4. ")
+      sub(/^## /,   "h3. ")
+      sub(/^# /,    "h2. ")
+      sub(/^  - /,  "** ")
+      sub(/^- /,    "* ")
+      print
+    }
+  '
+}
+
+if [[ "${JIRA_WIKI_CONVERT:-1}" == "1" ]]; then
+  text="$(to_wiki < "$report_file")"
+else
+  text="$(cat "$report_file")"
+fi
 [[ -n "$prefix" ]] && text="${prefix}"$'\n\n'"${text}"
 
 payload="$(jq -n --arg b "$text" '{body: $b}')"
