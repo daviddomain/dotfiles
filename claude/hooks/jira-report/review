@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# Startet einen Review-Lauf ueber einen Diff und postet den Befund ans Ticket.
+#
+#   review                        # Ticket aus dem Branch, Diff gegen die Basis
+#   review ABC-123                # Ticket vorgeben
+#   review ABC-123 main...HEAD    # Ticket und Diff-Bereich vorgeben
+#
+# Liest nur. Der Agent bekommt keine Schreib- und keine Bash-Werkzeuge, der
+# Diff wird ihm als Datei vorgelegt. Gepostet wird nach dem Lauf von hier,
+# nicht ueber den Stop-Hook.
+set -euo pipefail
+
+WORKSPACE="$(git rev-parse --show-toplevel)"
+branch="$(git -C "$WORKSPACE" rev-parse --abbrev-ref HEAD)"
+
+ENV_FILE="${CLAUDE_HOOK_ENV_FILE:-$HOME/.claude/hook.env}"
+REPORT_DIR="${CLAUDE_REPORT_DIR:-$WORKSPACE/.claude-reports}"
+TICKET_PATTERN="${CLAUDE_TICKET_PATTERN:-[a-z]+-[0-9]+}"
+CONTEXT_DIR="${CLAUDE_CONTEXT_DIR:-$HOME/.claude/context}"
+FORMAT_FILE="${CLAUDE_REVIEW_FORMAT_FILE:-$CONTEXT_DIR/review-format.md}"
+CONTRACT_FILE="${CLAUDE_CONTRACT_FILE:-}"
+BASE_REF="${CLAUDE_REVIEW_BASE:-origin/develop}"
+PERM_MODE="${CLAUDE_PERMISSION_MODE:-auto}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+ticket="${1:-}"
+range="${2:-$BASE_REF...HEAD}"
+
+if [[ -z "$ticket" ]]; then
+  if ! grep -qiE "$TICKET_PATTERN" <<<"$branch"; then
+    echo "Branch '$branch' enthaelt keinen Ticketschluessel." >&2
+    echo "Ticket als erstes Argument uebergeben, etwa: review ABC-123" >&2
+    exit 1
+  fi
+  ticket="$(grep -oiE "$TICKET_PATTERN" <<<"$branch" | head -n1)"
+fi
+ticket="$(tr '[:lower:]' '[:upper:]' <<<"$ticket")"
+
+[[ -f "$ENV_FILE" ]] || { echo "Zugangsdaten fehlen: $ENV_FILE" >&2; exit 1; }
+[[ -s "$FORMAT_FILE" ]] || { echo "Formatvorgabe fehlt: $FORMAT_FILE" >&2; exit 1; }
+
+mkdir -p "$REPORT_DIR"
+DIFF_FILE="$REPORT_DIR/diff.patch"
+REVIEW_FILE="$REPORT_DIR/review.md"
+rm -f "$REVIEW_FILE"
+
+if ! git -C "$WORKSPACE" rev-parse --verify --quiet "${range%%.*}" >/dev/null; then
+  echo "Basis '$range' nicht aufloesbar. Vorher fetchen oder Bereich angeben." >&2
+  exit 1
+fi
+
+git -C "$WORKSPACE" diff "$range" > "$DIFF_FILE"
+if [[ ! -s "$DIFF_FILE" ]]; then
+  echo "Leerer Diff fuer '$range'. Nichts zu pruefen." >&2
+  exit 1
+fi
+
+changed="$(git -C "$WORKSPACE" diff --name-only "$range" | wc -l)"
+
+# Ticketwortlaut mitgeben, damit der Reviewer das Abnahmekriterium pruefen kann
+# statt es aus dem Diff zu erraten. Scheitert der Abruf, laeuft er ohne.
+TICKET_FILE="$REPORT_DIR/ticket.md"
+rm -f "$TICKET_FILE"
+set -a; . "$ENV_FILE"; set +a
+if curl -sSf -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+     "$JIRA_BASE_URL/rest/api/2/issue/$ticket?fields=summary,description" 2>/dev/null \
+     | jq -r '"# " + .fields.summary + "\n\n" + (.fields.description // "")' > "$TICKET_FILE" 2>/dev/null \
+   && [[ -s "$TICKET_FILE" ]]; then
+  echo "Ticketbeschreibung geladen"
+else
+  rm -f "$TICKET_FILE"
+  echo "Ticketbeschreibung nicht abrufbar, Lauf ohne" >&2
+fi
+echo "Review $ticket, Bereich $range, $changed geaenderte Dateien"
+
+read -r -d '' AGENTS <<'EOF_AGENTS' || true
+{"reviewer":{"description":"Prueft einen vorgelegten Diff und meldet Befunde",
+"prompt":"Du bist ein erfahrener Reviewer. Du liest ausschliesslich. Du beurteilst nur, was im vorgelegten Diff steht, und ziehst umliegenden Code nur zum Verstaendnis heran. Vorgelegte Kontextdateien ausserhalb des Repos, etwa Auftrag und Contract, gehoeren zu deinen Quellen: nennt die Nachricht einen Pfad, liest du die Datei, bevor du urteilst. Findest du eine genannte Datei nicht, sagst du das als Befund, statt ihren Inhalt fuer nicht vorhanden zu erklaeren. Du meldest keine Stilvorlieben, sondern Abweichungen von Auftrag, Vorgaben und Korrektheit. Findest du nichts, sagst du das.",
+"tools":["Read","Grep","Glob"]}}
+EOF_AGENTS
+
+extra=""
+if [[ ! -t 0 ]]; then
+  extra="$(cat)"
+fi
+
+prompt="Pruefe den Diff in $DIFF_FILE. Ticket: $ticket. Diff-Bereich: $range. Geaenderte Dateien: $changed.
+
+Lies zuerst $FORMAT_FILE und halte dich bei Aufbau und Format genau daran. Deine gesamte Antwort ist der Befund, kein Vorwort und kein Nachwort.
+
+${TICKET_FILE:+Der Auftrag steht in $TICKET_FILE, sofern die Datei vorliegt. Pruefe das Abnahmekriterium daraus im Wortlaut.
+
+}Ziehe die Hausregeln des Repos aus CLAUDE.md heran, soweit der Diff sie beruehrt.${CONTRACT_FILE:+
+
+Verbindlicher fachlicher Contract: $CONTRACT_FILE. Vollstaendig lesen, bevor du urteilst. Er gilt vor den Tickets. Der Abschnitt Contract-Abgleich prueft gegen diese Datei, nicht gegen dein Vorwissen.}
+${extra:+
+Zusaetzlicher Kontext fuer diesen Lauf:
+$extra}"
+
+claude -p "$prompt" \
+  --agents "$AGENTS" \
+  --agent reviewer \
+  --add-dir "$CONTEXT_DIR" \
+  --permission-mode "$PERM_MODE" \
+  > "$REVIEW_FILE"
+
+if [[ ! -s "$REVIEW_FILE" ]]; then
+  echo "Kein Befund erzeugt. Nichts gepostet." >&2
+  exit 1
+fi
+
+"$HERE/post-report.sh" "$ticket" "$REVIEW_FILE" "Review-Lauf, Bereich {{$range}}"
