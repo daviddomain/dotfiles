@@ -14,6 +14,7 @@ WORKSPACE="$(git rev-parse --show-toplevel)"
 branch="$(git -C "$WORKSPACE" rev-parse --abbrev-ref HEAD)"
 
 ENV_FILE="${CLAUDE_HOOK_ENV_FILE:-$HOME/.claude/hook.env}"
+[ -f "$ENV_FILE" ] && { set -a; . "$ENV_FILE"; set +a; }
 REPORT_DIR="${CLAUDE_REPORT_DIR:-$WORKSPACE/.claude-reports}"
 TICKET_PATTERN="${CLAUDE_TICKET_PATTERN:-[a-z]+-[0-9]+}"
 CONTEXT_DIR="${CLAUDE_CONTEXT_DIR:-$HOME/.claude/context}"
@@ -21,7 +22,7 @@ FORMAT_FILE="${CLAUDE_REVIEW_FORMAT_FILE:-$CONTEXT_DIR/review-format.md}"
 CONTRACT_FILE="${CLAUDE_CONTRACT_FILE:-}"
 BASE_REF="${CLAUDE_REVIEW_BASE:-origin/develop}"
 PERM_MODE="${CLAUDE_PERMISSION_MODE:-auto}"
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 ticket="${1:-}"
 range="${2:-$BASE_REF...HEAD}"
@@ -61,7 +62,6 @@ changed="$(git -C "$WORKSPACE" diff --name-only "$range" | wc -l)"
 # statt es aus dem Diff zu erraten. Scheitert der Abruf, laeuft er ohne.
 TICKET_FILE="$REPORT_DIR/ticket.md"
 rm -f "$TICKET_FILE"
-set -a; . "$ENV_FILE"; set +a
 if curl -sSf -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
      "$JIRA_BASE_URL/rest/api/2/issue/$ticket?fields=summary,description" 2>/dev/null \
      | jq -r '"# " + .fields.summary + "\n\n" + (.fields.description // "")' > "$TICKET_FILE" 2>/dev/null \
