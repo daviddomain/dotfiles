@@ -59,18 +59,38 @@ fi
 changed="$(git -C "$WORKSPACE" diff --name-only "$range" | wc -l)"
 
 # Ticketwortlaut mitgeben, damit der Reviewer das Abnahmekriterium pruefen kann
-# statt es aus dem Diff zu erraten. Scheitert der Abruf, laeuft er ohne.
+# statt es aus dem Diff zu erraten. Ohne ihn bricht der Lauf ab.
 TICKET_FILE="$REPORT_DIR/ticket.md"
-rm -f "$TICKET_FILE"
-if curl -sSf -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
-     "$JIRA_BASE_URL/rest/api/2/issue/$ticket?fields=summary,description" 2>/dev/null \
-     | jq -r '"# " + .fields.summary + "\n\n" + (.fields.description // "")' > "$TICKET_FILE" 2>/dev/null \
-   && [[ -s "$TICKET_FILE" ]]; then
+TICKET_RESPONSE="$REPORT_DIR/ticket-response.json"
+rm -f "$TICKET_FILE" "$TICKET_RESPONSE"
+
+rc=0
+http="$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 --max-time 20 \
+  -o "$TICKET_RESPONSE" -w '%{http_code}' \
+  -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+  "$JIRA_BASE_URL/rest/api/2/issue/$ticket?fields=summary,description")" || rc=$?
+(( rc == 0 )) || http="$http, curl-Exit $rc"
+
+if [[ "$http" == "200" ]] \
+   && jq -er '"# " + .fields.summary + "\n\n" + (.fields.description // "")' \
+        < "$TICKET_RESPONSE" > "$TICKET_FILE"; then
   echo "Ticketbeschreibung geladen"
 else
   rm -f "$TICKET_FILE"
-  echo "Ticketbeschreibung nicht abrufbar, Lauf ohne" >&2
+  # Ein ungueltiges Token beantwortet Jira mit 404, nicht 401 - darum der Antwortkoerper.
+  echo "Ticketbeschreibung fuer $ticket nicht abrufbar (HTTP $http)." >&2
+  head -c 500 "$TICKET_RESPONSE" >&2
+  echo >&2
+  if [[ "${CLAUDE_REVIEW_ALLOW_NO_TICKET:-0}" == "1" ]]; then
+    echo "WARNUNG: CLAUDE_REVIEW_ALLOW_NO_TICKET=1 gesetzt. Lauf ohne Ticketwortlaut," >&2
+    echo "das Abnahmekriterium wird nicht im Wortlaut geprueft." >&2
+  else
+    echo "Abbruch. Fuer einen Lauf ohne Ticketwortlaut: CLAUDE_REVIEW_ALLOW_NO_TICKET=1" >&2
+    rm -f "$TICKET_RESPONSE"
+    exit 1
+  fi
 fi
+rm -f "$TICKET_RESPONSE"
 echo "Review $ticket, Bereich $range, $changed geaenderte Dateien"
 
 read -r -d '' AGENTS <<'EOF_AGENTS' || true
@@ -84,13 +104,18 @@ if [[ ! -t 0 ]]; then
   extra="$(cat)"
 fi
 
+auftrag=""
+if [[ -s "$TICKET_FILE" ]]; then
+  auftrag="Der Auftrag steht in $TICKET_FILE. Pruefe das Abnahmekriterium daraus im Wortlaut.
+
+"
+fi
+
 prompt="Pruefe den Diff in $DIFF_FILE. Ticket: $ticket. Diff-Bereich: $range. Geaenderte Dateien: $changed.
 
 Lies zuerst $FORMAT_FILE und halte dich bei Aufbau und Format genau daran. Deine gesamte Antwort ist der Befund, kein Vorwort und kein Nachwort.
 
-${TICKET_FILE:+Der Auftrag steht in $TICKET_FILE, sofern die Datei vorliegt. Pruefe das Abnahmekriterium daraus im Wortlaut.
-
-}Ziehe die Hausregeln des Repos aus CLAUDE.md heran, soweit der Diff sie beruehrt.${CONTRACT_FILE:+
+${auftrag}Ziehe die Hausregeln des Repos aus CLAUDE.md heran, soweit der Diff sie beruehrt.${CONTRACT_FILE:+
 
 Verbindlicher fachlicher Contract: $CONTRACT_FILE. Vollstaendig lesen, bevor du urteilst. Er gilt vor den Tickets. Der Abschnitt Contract-Abgleich prueft gegen diese Datei, nicht gegen dein Vorwissen.}
 ${extra:+
