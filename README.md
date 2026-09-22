@@ -18,6 +18,51 @@ aarch64), `python3` und `sha256sum`.
 VS Code Dev Containers klont dieses Repository über die User Settings nach
 `~/dotfiles` und führt denselben Befehl bei der Container-Erstellung aus.
 
+## WSL vor der Einrichtung prüfen
+
+Im persönlichen Dotfiles-Klon auf dem WSL-Host ausführen:
+
+```bash
+bash ./check-wsl.sh              # Dotfiles + Docker + Dev Containers CLI
+bash ./check-wsl.sh --voice      # zusätzlich WSLg-Audio-Socket
+bash ./check-wsl.sh --shell-only # nur das WSL-Dotfiles-Setup
+```
+
+`check-wsl.sh` prüft vor der Installation die benötigten Programme, unterstützte
+Architektur, das persönliche Home, vorhandene Herdr-/Broot-Versionen sowie im
+CLI-Modus die Erreichbarkeit von Docker und die Startfähigkeit der Dev Containers
+CLI. Die Aufrufe sind zeitlich begrenzt. Ein separates Node.js ist nicht pauschal
+Pflicht: Die tatsächliche CLI muss mit ihrer jeweiligen Laufzeit starten können.
+
+Der Check installiert nichts, lädt keine privaten Shell-Dateien, startet keine
+Container und nimmt kein Audio auf. Exit-Code `0` bedeutet, dass die erforderlichen
+Prüfungen bestanden sind, `1` meldet fehlende/defekte Voraussetzungen und `2`
+ungültige Argumente oder den Aufruf außerhalb des WSL-Hosts. Warnungen ändern
+den Exit-Code nicht. Downloads, APT-Paketangebot, Konfigurationskonflikte,
+Windows-Mikrofonrechte und der Zustand eines Zielcontainers werden nicht geprüft.
+`doctor.sh` prüft anschließend die tatsächlich installierten Dotfiles.
+
+### Devcontainer ohne geöffnetes VS Code
+
+Der direkte Weg benötigt Docker und eine in WSL funktionierende Dev Containers
+CLI. Diese übernimmt die VS-Code-User-Settings nicht automatisch:
+
+```bash
+# Im gewünschten Projektordner auf dem WSL-Host:
+devcontainer up --workspace-folder . \
+  --dotfiles-repository https://github.com/daviddomain/dotfiles.git \
+  --dotfiles-target-path '~/dotfiles' \
+  --dotfiles-install-command install.sh
+devcontainer exec --workspace-folder . zsh
+```
+
+Die persönlichen Komfortfunktionen `dcupexec` und `dcuvoice` sind separate
+WSL-Konfiguration in `~/.zshrc.local` und werden durch dieses Repository nicht
+installiert. Ihre Verfügbarkeit lässt sich in der eigenen zsh mit
+`whence -w dcupexec dcuvoice` prüfen. Ein bestehender Container erhält beim
+erneuten Einstieg nicht automatisch aktualisierte Dotfiles. Für diesen Fall
+gelten die Schritte zur kontrollierten Aktualisierung des persönlichen Klons.
+
 ## Verhalten
 
 - oh-my-zsh, Powerlevel10k und beide zsh-Plugins werden auf die in
