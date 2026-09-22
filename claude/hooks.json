@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/jira-report/report-to-jira.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
