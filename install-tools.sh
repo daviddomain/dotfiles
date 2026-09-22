@@ -5,7 +5,16 @@ DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DOTFILES/versions.env"
 export PATH="$HOME/.local/bin:$PATH"
 config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
-data_home="${XDG_DATA_HOME:-$HOME/.local/share}/dotfiles-tools"
+data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
+data_parent="$data_root"
+while [[ ! -e "$data_parent" && "$data_parent" != / && "$data_parent" != . ]]; do
+  data_parent="$(dirname "$data_parent")"
+done
+if [[ ! -d "$data_parent" || ! -w "$data_parent" ]]; then
+  printf '[tools:warn] Datenverzeichnis %s ist nicht beschreibbar; verwende das persönliche Home.\n' "$data_root" >&2
+  data_root="$HOME/.local/share"
+fi
+data_home="$data_root/dotfiles-tools"
 state_home="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles-tools"
 cache_home="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-downloads"
 log() { printf '[tools] %s\n' "$*"; }

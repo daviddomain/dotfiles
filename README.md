@@ -78,6 +78,9 @@ bash ./install-tools.sh
   spätere lokale Änderungen werden anhand einer Prüfsumme erkannt und nicht
   überschrieben. Statusdateien liegen unter `~/.local/state/dotfiles-tools`.
   XDG-Konfigurations-, Daten-, Cache- und Statusverzeichnisse werden berücksichtigt.
+  Ist das geerbte XDG-Datenverzeichnis nicht beschreibbar, verwendet der
+  Tool-Installer stattdessen `~/.local/share/dotfiles-tools`. Die geerbte
+  Umgebungsvariable und das fremde Verzeichnis bleiben unverändert.
 - Herdr wird manuell gestartet. Ein Container-Rebuild beendet seine Prozesse;
   Sitzungen und Logs bleiben lokale Laufzeitdaten und gehören nicht ins Repo.
 
