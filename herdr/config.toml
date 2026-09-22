@@ -1,0 +1,35 @@
+onboarding = false
+
+[ui]
+show_agent_labels_on_pane_borders = true
+agent_panel_sort = "spaces"
+
+[ui.toast]
+delivery = "system"
+
+[theme]
+name = "one-dark"
+auto_switch = false
+
+[terminal]
+default_shell = "zsh"
+new_cwd = "follow"
+
+[keys]
+prefix = "alt+j"
+
+[[keys.command]]
+key = "prefix+t"
+type = "popup"
+command = "exec zsh"
+description = "open scratch terminal"
+width = "94%"
+height = "86%"
+
+[[keys.command]]
+key = "prefix+f"
+type = "popup"
+command = "zsh -ic 'br'"
+description = "open broot"
+width = "94%"
+height = "86%"

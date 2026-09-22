@@ -1,0 +1,25 @@
+show_selection_mark = true
+
+[[verbs]]
+invocation = "edit"
+shortcut = "e"
+key = "ctrl-e"
+apply_to = "text_file"
+external = "$EDITOR {file:space-separated}"
+leave_broot = false
+
+[[verbs]]
+key = "ctrl-k"
+internal = "line_up"
+
+[[verbs]]
+key = "ctrl-j"
+internal = "line_down"
+
+[[verbs]]
+key = "ctrl-u"
+internal = "page_up"
+
+[[verbs]]
+key = "ctrl-d"
+internal = "page_down"

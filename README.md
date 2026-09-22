@@ -7,6 +7,8 @@ teamverwaltete Devcontainer. Projekt-Repositories werden dadurch nicht veränder
 
 Voraussetzungen außerhalb von Debian/Ubuntu: `git`, `curl` und `zsh`.
 Auf Debian/Ubuntu installiert `install.sh` fehlende Pakete über `apt-get`.
+Die persönlichen Terminal-Tools benötigen zusätzlich Linux (x86_64 oder
+aarch64), `python3` und `sha256sum`.
 
 ```bash
 ./install.sh
@@ -28,6 +30,7 @@ VS Code Dev Containers klont dieses Repository über die User Settings nach
   `~/.config/broot/launcher/bash/br` vorhanden und lesbar ist.
 - Nano wird als Standardeditor gesetzt, wenn es installiert ist. Persönliche
   Anpassungen in `~/.zshrc.local` können diese Vorgabe überschreiben.
+- `~/.local/bin` wird in zsh auch ohne Login-Shell in den Suchpfad aufgenommen.
 - Die zsh-History wird nur dann nach `~/.claude/.shell/zsh_history` umgebogen,
   wenn `~/.claude` in einem Devcontainer ein echter beschreibbarer Mount ist.
 - Außerhalb von Devcontainern wird die zsh-History einmal täglich beim ersten
@@ -39,6 +42,53 @@ VS Code Dev Containers klont dieses Repository über die User Settings nach
 - Persoenliche Skills und Agents werden konfliktgeschuetzt kopiert; Rules und
   Hook-Skripte werden pro Eintrag nach `~/.claude` verlinkt. Bestehende fremde
   Inhalte werden dabei niemals automatisch ersetzt.
+
+## Nano, Herdr und Broot
+
+`install.sh` ruft `install-tools.sh` auf. Die Tools lassen sich auch separat
+einrichten, ohne die Shell-Komponenten oder Claude-Einstellungen zu verändern:
+
+```bash
+bash ./install-tools.sh
+```
+
+- Nano erhält die Einstellungen aus `nano/nanorc`: zwei Leerzeichen pro Tab,
+  automatische Einrückung, Maus, Zeilennummern, weichen Zeilenumbruch, Löschen
+  markierter Bereiche und eine Suche mit Beachtung der Groß-/Kleinschreibung.
+- Der Installer erzeugt `~/.nanorc` und ergänzt die vorhandenen Syntaxdateien.
+  Der WSL-Shortcut `Alt+C` aus `nano/wsl.nanorc` wird nur außerhalb von
+  Containern und bei vorhandenem `clip.exe` ergänzt. In Containern gilt für
+  `Alt+C` die normale Nano-Belegung; es wird kein Host-Clipboard eingebunden.
+- Ein vorhandenes Nano bleibt erhalten. Fehlt es, wird unter Debian/Ubuntu
+  das Paket aus den konfigurierten APT-Quellen heruntergeladen und unter
+  `~/.local/share/dotfiles-tools/nano` entpackt. Es gibt keine systemweite
+  Paketinstallation. APT-Paketlisten sowie die benötigten ncurses-Bibliotheken
+  müssen bereits vorhanden sein. Die Nano-Version folgt dem Paketangebot
+  der Distribution; sie wird nicht als eigener Upstream-Binary-Pin geführt.
+- Herdr und Broot werden bei Bedarf aus offiziellen GitHub-Releases nach
+  `~/.local/bin` installiert. Versionen und SHA-256-Prüfsummen stehen in
+  `versions.env`. Vorhandene andere Versionen führen zu einem Hinweis mit
+  Abbruch, statt sie automatisch zu ersetzen.
+- Herdr verwendet `one-dark`, zsh und `Alt+J` als Präfix. Danach öffnet `T`
+  ein Shell-Popup und `F` ein Broot-Popup. In Broot öffnet `Ctrl+E` eine
+  Textdatei im Editor. Der `br`-Launcher wird bei Bedarf bereitgestellt.
+- Eine vorhandene Broot-Konfiguration bleibt bestehen. Frische Installationen
+  erhalten `broot/conf.toml`. Herdr- und Nano-Konfigurationen werden als Kopien
+  installiert: Erstmalig ersetzte Inhalte erhalten ein `.bak.*`-Backup,
+  spätere lokale Änderungen werden anhand einer Prüfsumme erkannt und nicht
+  überschrieben. Statusdateien liegen unter `~/.local/state/dotfiles-tools`.
+  XDG-Konfigurations-, Daten-, Cache- und Statusverzeichnisse werden berücksichtigt.
+- Herdr wird manuell gestartet. Ein Container-Rebuild beendet seine Prozesse;
+  Sitzungen und Logs bleiben lokale Laufzeitdaten und gehören nicht ins Repo.
+
+Herdr und Broot werden nicht automatisch aktualisiert. Bei einem Update zuerst
+Release Notes prüfen, Version und die offiziellen Release-Prüfsummen gemeinsam
+ändern und Installation sowie Diagnose erneut in WSL und Devcontainern testen.
+`check-versions.sh` prüft weiterhin ausschließlich die vier Shell-Komponenten.
+
+Quellen: [Herdr-Installation](https://herdr.dev/docs/install/),
+[Broot-Installation](https://dystroy.org/broot/install/),
+[Nano-Konfiguration](https://www.nano-editor.org/dist/latest/nanorc.5.html).
 
 ## Portable Claude-Erweiterungen
 

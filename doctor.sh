@@ -6,6 +6,7 @@ DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DOTFILES/versions.env"
 # shellcheck source=claude/extensions.sh
 source "$DOTFILES/claude/extensions.sh"
+export PATH="$HOME/.local/bin:$PATH"
 
 failures=0
 ok()   { printf '\033[1;32m[ok]\033[0m %s\n' "$*"; }
@@ -42,6 +43,28 @@ check_revision() {
 check_command git
 check_command curl
 check_command zsh
+check_command nano
+check_command herdr
+check_command broot
+
+for spec in "herdr|$HERDR_VERSION" "broot|$BROOT_VERSION"; do
+  IFS='|' read -r tool expected <<< "$spec"
+  if [[ "$("$tool" --version 2>/dev/null)" == "$tool $expected" ]]; then
+    ok "$tool: $expected"
+  else
+    fail "$tool fehlt oder weicht von Version $expected ab"
+  fi
+done
+if [[ -r "$HOME/.nanorc" ]] && grep -q '^set tabsize 2$' "$HOME/.nanorc"; then
+  ok 'Persönliche Nano-Konfiguration vorhanden'
+else
+  fail 'Persönliche Nano-Konfiguration fehlt'
+fi
+if HERDR_CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml" herdr config check; then
+  ok 'Herdr-Konfiguration gültig'
+else
+  fail 'Herdr-Konfiguration fehlt oder ist ungültig'
+fi
 
 check_link "$HOME/.zshrc" "$DOTFILES/zsh/zshrc"
 check_link "$HOME/.p10k.zsh" "$DOTFILES/zsh/p10k.zsh"

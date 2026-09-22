@@ -3,6 +3,10 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+# Persönlich installierte Programme auch in nicht-login Devcontainer-Shells finden.
+typeset -U path PATH
+path=("$HOME/.local/bin" $path)
+
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
 
@@ -81,7 +85,7 @@ fi
 (( $+commands[npm] )) && alias n='npm'
 
 # Broot nur laden, wenn der persönliche Launcher vorhanden ist.
-[[ ! -r "$HOME/.config/broot/launcher/bash/br" ]] || source "$HOME/.config/broot/launcher/bash/br"
+[[ ! -r "${XDG_CONFIG_HOME:-$HOME/.config}/broot/launcher/bash/br" ]] || source "${XDG_CONFIG_HOME:-$HOME/.config}/broot/launcher/bash/br"
 
 # Nano als Standardeditor verwenden, wenn es installiert ist.
 if (( $+commands[nano] )); then
@@ -104,4 +108,3 @@ source "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
 # VS Code Remote-Container: Shell-Integration laden, wenn verfügbar.
 [[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
-

@@ -1,0 +1,13 @@
+# Indentation
+set tabsize 2
+set tabstospaces
+set autoindent
+
+# Editing
+set mouse
+set linenumbers
+set softwrap
+set zap
+
+# Search
+set casesensitive

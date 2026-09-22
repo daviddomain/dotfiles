@@ -1,0 +1,2 @@
+unbind M-C main
+bind M-C "{execute}| tee >(clip.exe) {enter}{undo}" main

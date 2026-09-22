@@ -269,6 +269,8 @@ sync_repo zsh-users/zsh-syntax-highlighting "$CUSTOM/plugins/zsh-syntax-highligh
 link_file "$DOTFILES/zsh/zshrc" "$HOME/.zshrc"
 link_file "$DOTFILES/zsh/p10k.zsh" "$HOME/.p10k.zsh"
 
+bash "$DOTFILES/install-tools.sh"
+
 if command -v claude >/dev/null 2>&1; then
   if ! claude_extensions_preflight "$DOTFILES/claude" "$HOME/.claude"; then
     die "Claude-Erweiterungen enthalten Konflikte oder unsichere Quellen."
