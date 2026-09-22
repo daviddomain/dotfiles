@@ -37,6 +37,27 @@ source "$ZSH/oh-my-zsh.sh"
 # Keine Befehle mit führendem Leerzeichen in der persistenten History speichern.
 setopt HIST_IGNORE_SPACE HIST_REDUCE_BLANKS
 
+# Außerhalb von Devcontainern täglich eine nicht überschreibbare History-Kopie anlegen.
+autoload -Uz add-zsh-hook
+
+_dotfiles_backup_zsh_history() {
+  emulate -L zsh
+  [[ -f /.dockerenv || -z "${HISTFILE:-}" || ! -s "$HISTFILE" ]] && return 0
+
+  local backup_dir="${XDG_STATE_HOME:-$HOME/.local/state}/zsh-history-backups"
+  local backup_file="$backup_dir/zsh_history-${(%):-%D{%Y-%m-%d\}}"
+
+  command mkdir -p -m 700 -- "$backup_dir" 2>/dev/null || return 0
+  command chmod 700 -- "$backup_dir" 2>/dev/null
+
+  if [[ ! -e "$backup_file" ]] && command cp -p -n -- "$HISTFILE" "$backup_file" 2>/dev/null; then
+    command chmod 600 -- "$backup_file" 2>/dev/null
+    command find "$backup_dir" -maxdepth 1 -type f -name 'zsh_history-*' -mtime +60 -delete 2>/dev/null
+  fi
+}
+
+add-zsh-hook precmd _dotfiles_backup_zsh_history
+
 # ── Optionale, im jeweiligen Image vorhandene Shell-Integrationen ──
 if (( $+commands[direnv] )); then
   eval "$(direnv hook zsh)"
@@ -58,6 +79,14 @@ fi
 # ── Aliases ──
 (( $+commands[docker] )) && alias containernames='docker ps --format "{{.Names}}"'
 (( $+commands[npm] )) && alias n='npm'
+
+# Broot nur laden, wenn der persönliche Launcher vorhanden ist.
+[[ ! -r "$HOME/.config/broot/launcher/bash/br" ]] || source "$HOME/.config/broot/launcher/bash/br"
+
+# Nano als Standardeditor verwenden, wenn es installiert ist.
+if (( $+commands[nano] )); then
+  export EDITOR="${commands[nano]}"
+fi
 
 # ── nvm (nur laden, wenn vorhanden) ──
 export NVM_DIR="$HOME/.nvm"

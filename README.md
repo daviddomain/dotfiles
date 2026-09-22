@@ -24,8 +24,16 @@ VS Code Dev Containers klont dieses Repository über die User Settings nach
   werden zuvor als zeitgestempeltes Backup gesichert.
 - npm-, Node-, Docker- und sudo-Plugins sowie direnv, fzf und gh-Completion
   werden nur aktiviert, wenn die jeweilige Umgebung sie anbietet.
+- Der persönliche Broot-Launcher wird geladen, wenn er unter
+  `~/.config/broot/launcher/bash/br` vorhanden und lesbar ist.
+- Nano wird als Standardeditor gesetzt, wenn es installiert ist. Persönliche
+  Anpassungen in `~/.zshrc.local` können diese Vorgabe überschreiben.
 - Die zsh-History wird nur dann nach `~/.claude/.shell/zsh_history` umgebogen,
   wenn `~/.claude` in einem Devcontainer ein echter beschreibbarer Mount ist.
+- Außerhalb von Devcontainern wird die zsh-History einmal täglich beim ersten
+  Prompt nach `${XDG_STATE_HOME:-$HOME/.local/state}/zsh-history-backups`
+  gesichert. Tageskopien werden nicht überschrieben; Sicherungen, die älter
+  als 60 Tage sind, werden automatisch entfernt.
 - In Devcontainern mit installierter Claude CLI wird das versionierte Fragment
   in `~/.claude/settings.json` gemergt.
 - Persoenliche Skills und Agents werden konfliktgeschuetzt kopiert; Rules und
