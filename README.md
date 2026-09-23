@@ -3,6 +3,67 @@
 Persönliche Shell- und Claude-Code-Konfiguration für Ubuntu/WSL und
 teamverwaltete Devcontainer. Projekt-Repositories werden dadurch nicht verändert.
 
+## Einstieg auf einem neuen Windows-/WSL-Rechner
+
+Zuerst Windows-seitig WSL2 mit Ubuntu und einen normalen Linux-Benutzer mit
+`sudo` einrichten. Für Devcontainer zusätzlich Docker Desktop starten und die
+WSL-Anbindung für diese Ubuntu-Distribution aktivieren. Der Bootstrap installiert
+weder WSL noch Docker Desktop und ändert keine Docker-Zugriffsrechte.
+
+Falls selbst Git fehlt, in der Ubuntu-Shell zunächst den Zugang zum öffentlichen
+Repository bereitstellen (GitHub-Anmeldung ist dafür nicht erforderlich):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git ca-certificates
+git clone https://github.com/daviddomain/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+bash ./bootstrap-wsl.sh --plan
+bash ./bootstrap-wsl.sh
+```
+
+Einen bereits vorhandenen Zielordner vorher prüfen; nicht überschreiben.
+`bootstrap-wsl.sh` unterstützt Ubuntu auf WSL2 (x86_64/aarch64). Es zeigt fehlende
+Basispakete und den CLI-Installationsplan an und fragt vor Änderungen nach.
+`--yes` bestätigt diesen Umfang ausdrücklich für unbeaufsichtigte Läufe;
+`--shell-only` richtet nur die WSL-Basispakete ein. Dieser Modus passt auch dann,
+wenn Container ausschließlich über VS Code gestartet werden sollen.
+
+Die Basispakete umfassen Git, curl, CA-Zertifikate, zsh, Python 3, Nano sowie die
+benötigten Prüf- und Archivwerkzeuge. Nur fehlende Pakete werden angefordert;
+APT kann dabei notwendige Abhängigkeiten installieren oder aktualisieren.
+Die Standardvariante ruft danach `install-cli.sh` auf. Eine funktionsfähige CLI
+mit Unterstützung für `--no-lockfile` bleibt erhalten. Eine defekte oder zu alte
+Installation wird nicht automatisch ersetzt.
+
+Bei fehlender CLI installiert `install-cli.sh` die in `versions.env` festgelegten
+CLI- und Node-Versionen aus den offiziellen npm-/Node-Archiven, prüft deren
+SHA-256-Summen und legt sie unter `~/.local/share/dotfiles-devcontainer-cli` ab.
+`~/.local/bin/devcontainer` verweist auf den zugehörigen Launcher. Dafür sind weder
+ein vorhandenes Node/npm noch globale npm-Pakete nötig; andere Node-Installationen
+bleiben unverändert. Dieser Installer kann separat mit `bash ./install-cli.sh`
+ausgeführt werden, wenn die benötigten Basiswerkzeuge bereits vorhanden sind.
+
+Zum Abschluss läuft `check-wsl.sh`. Fehlendes oder nicht erreichbares Docker wird
+als offene Voraussetzung gemeldet; bereits installierte Pakete bleiben erhalten.
+Nach Behebung kann der Bootstrap wiederholt werden. Er installiert noch keine
+Dotfiles, ändert keine Shell-Profile und startet keine Container.
+
+Nach erfolgreicher Prüfung und Sichtung der gewünschten persönlichen Einstellungen:
+
+```bash
+bash ./install.sh
+bash ./doctor.sh
+zsh
+whence -w dcupexec dcuvoice
+```
+
+`install.sh` ändert die Standardshell nicht. Das gewünschte Terminalprofil bewusst
+auf zsh einstellen. Für die Prompt-Symbole eine passende Nerd Font unter Windows
+installieren und im Terminal auswählen. Claude Code samt persönlicher Anmeldung
+ist optional und wird nicht durch den Bootstrap installiert. Audio erst nach dem
+erfolgreichen normalen Container-Einstieg einrichten.
+
 ## Installation
 
 Voraussetzungen außerhalb von Debian/Ubuntu: `git`, `curl` und `zsh`.
@@ -33,6 +94,7 @@ Architektur, das persönliche Home, vorhandene Herdr-/Broot-Versionen sowie im
 CLI-Modus die Erreichbarkeit von Docker und die Startfähigkeit der Dev Containers
 CLI. Die Aufrufe sind zeitlich begrenzt. Ein separates Node.js ist nicht pauschal
 Pflicht: Die tatsächliche CLI muss mit ihrer jeweiligen Laufzeit starten können.
+Zusätzlich muss die CLI `--no-lockfile` unterstützen.
 
 Der Check installiert nichts, lädt keine privaten Shell-Dateien, startet keine
 Container und nimmt kein Audio auf. Exit-Code `0` bedeutet, dass die erforderlichen
@@ -49,19 +111,47 @@ CLI. Diese übernimmt die VS-Code-User-Settings nicht automatisch:
 
 ```bash
 # Im gewünschten Projektordner auf dem WSL-Host:
-devcontainer up --workspace-folder . \
+devcontainer up --workspace-folder . --no-lockfile \
   --dotfiles-repository https://github.com/daviddomain/dotfiles.git \
   --dotfiles-target-path '~/dotfiles' \
   --dotfiles-install-command install.sh
 devcontainer exec --workspace-folder . zsh
 ```
 
-Die persönlichen Komfortfunktionen `dcupexec` und `dcuvoice` sind separate
-WSL-Konfiguration in `~/.zshrc.local` und werden durch dieses Repository nicht
-installiert. Ihre Verfügbarkeit lässt sich in der eigenen zsh mit
-`whence -w dcupexec dcuvoice` prüfen. Ein bestehender Container erhält beim
-erneuten Einstieg nicht automatisch aktualisierte Dotfiles. Für diesen Fall
-gelten die Schritte zur kontrollierten Aktualisierung des persönlichen Klons.
+Die gemeinsame zsh-Konfiguration lädt auf dem WSL-Host `zsh/wsl.zsh`. Darin liegen
+die portablen Funktionen `dcupexec` und `dcuvoice`; im Container werden sie nicht
+definiert. Neue WSL-zsh-Shells finden auch `~/.local/bin` und `~/.devcontainers/bin`.
+Die Verfügbarkeit lässt sich mit `whence -w dcupexec dcuvoice` prüfen.
+
+- `dcupexec [Projektordner] [Shell]` startet oder verwendet den Container und
+  öffnet die Shell (Standard: aktueller Ordner und zsh). Die Funktion übergibt
+  die Dotfiles-Parameter und `--no-lockfile`, damit die CLI keine Lockdatei im
+  Projekt erzeugt. Die vom Projekt selbst definierten Lifecycle-Befehle laufen
+  weiterhin; die Option unterbindet deren mögliche Schreibzugriffe nicht.
+- Ist der WSLg-Socket vorhanden, wird Audio bei der Erstellung eingebunden.
+  Bei verfügbarem Mount stellt der Helper SoX im Debian-/Ubuntu-Container bereit.
+  Eine angemeldete GitHub CLI im Container wird für HTTPS-Git eingebunden.
+- `dcuvoice [Projektordner] [Shell]` erstellt den Container neu. Es verlangt
+  interaktiv die Eingabe `ja`, bevor laufende Prozesse beendet werden und nicht
+  persistente Daten verloren gehen können. Danach werden Audio und eine kurze
+  Mikrofonaufnahme geprüft; die temporäre Aufnahme wird wieder gelöscht.
+  Der Helper benötigt im Container APT/dpkg und Root oder sudo. Er transkribiert
+  nicht selbst; Claude Code und `/voice` müssen separat verfügbar sein.
+- Beide Funktionen bieten `--help`. Audio ist optional; normale Container-Starts
+  funktionieren auch ohne WSLg-Socket. Ein bestehender Container ohne Audio-Mount
+  wird von `dcupexec` nicht automatisch neu erstellt.
+
+Vorhandene private Funktionen und Aliase bleiben erhalten. `~/.zshrc.local`
+wird danach geladen und hat Vorrang. Wer dort noch ältere Definitionen von
+`dcupexec`/`dcuvoice` hat, verwendet weiter diese alten Definitionen, bis er sie
+nach Backup bewusst entfernt. Der Installer migriert oder löscht sie nicht.
+Für einen eigenen Fork kann `DOTFILES_DEVCONTAINER_REPOSITORY` in der privaten
+WSL-Konfiguration auf dessen URL gesetzt werden.
+
+Ein bestehender Container erhält beim erneuten Einstieg nicht automatisch
+aktualisierte Dotfiles. Dafür den persönlichen Klon kontrolliert aktualisieren
+und `install.sh` sowie `doctor.sh` ausführen. Der Helper prüft nur die Shell-
+Grundkonfiguration; die vollständige Prüfung erfolgt mit `doctor.sh`.
 
 ## Verhalten
 

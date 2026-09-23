@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Read-only host preflight; never sources user shell files or starts containers.
 set -uo pipefail
-export PATH="${HOME:-}/.local/bin:$PATH"
+export PATH="${HOME:-}/.local/bin:${HOME:-}/.devcontainers/bin:$PATH"
 
 usage() {
   cat <<'EOF'
@@ -74,6 +74,9 @@ if has timeout; then
       fail "$tool gefunden, aber nicht innerhalb von 10 Sekunden ausführbar."
     fi
   done
+  if has python3 && ! timeout -k 2s 10s python3 -c 'import hashlib, json, shutil, zipfile' >/dev/null 2>&1; then
+    fail 'Python-Standardbibliothek unvollständig; vollständiges python3-Paket der Distribution bereitstellen.'
+  fi
 fi
 
 if has nano; then
@@ -116,15 +119,17 @@ if [[ $mode != shell ]]; then
       fi
     fi
     if has devcontainer; then
-      if timeout -k 2s 10s devcontainer --version >/dev/null 2>&1; then
-        ok 'Dev Containers CLI startet einschließlich ihrer Laufzeit'
+      if timeout -k 2s 10s devcontainer --version >/dev/null 2>&1 &&
+        cli_help="$(timeout -k 2s 10s devcontainer up --help 2>&1)" &&
+        [[ $cli_help == *--no-lockfile* ]]; then
+        ok 'Dev Containers CLI startet und unterstützt --no-lockfile'
       else
-        fail 'Dev Containers CLI gefunden, startet aber nicht: PATH und CLI-Laufzeit prüfen.'
+        fail 'Dev Containers CLI startet nicht oder unterstützt --no-lockfile nicht: PATH, Laufzeit und Version prüfen.'
       fi
     fi
   fi
   info 'VS Code muss für diesen CLI-Weg nicht laufen.'
-  info 'dcupexec/dcuvoice sind separate persönliche zsh-Funktionen. In der eigenen zsh mit whence -w dcupexec dcuvoice prüfen; dieser Check lädt keine .zshrc.local.'
+  info 'Nach install.sh lädt eine neue WSL-zsh die portablen Funktionen dcupexec/dcuvoice. Private Definitionen haben Vorrang. Mit whence -w dcupexec dcuvoice prüfen; dieser Check lädt keine Shell-Dateien.'
 fi
 if [[ $mode == voice ]]; then
   if [[ -S /mnt/wslg/PulseServer ]]; then

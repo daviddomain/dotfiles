@@ -32,8 +32,9 @@ class PreflightTests(unittest.TestCase):
             (self.bin / name).symlink_to(shutil.which(name))
         for name in ("git", "curl", "zsh", "python3", "nano"):
             self.stub(name, 'test "$*" = --version')
+        self.stub("python3", 'case "$1" in --version|-c) exit 0 ;; *) exit 99 ;; esac')
         self.stub("docker", 'test "$*" = "info --format {{.ServerVersion}}"')
-        self.stub("devcontainer", 'test "$*" = --version')
+        self.stub("devcontainer", 'case "$*" in --version) exit 0 ;; "up --help") echo --no-lockfile ;; *) exit 99 ;; esac')
 
     def stub(self, name, body):
         target = self.bin / name
@@ -55,7 +56,7 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual((first.returncode, first.stdout), (second.returncode, second.stdout))
         calls = self.calls.read_text()
         self.assertIn("docker info --format {{.ServerVersion}}", calls)
-        self.assertNotIn("devcontainer up", calls)
+        self.assertNotIn("devcontainer up --workspace", calls)
 
     def test_missing_required_dependency(self):
         (self.bin / "git").unlink()
@@ -72,6 +73,12 @@ class PreflightTests(unittest.TestCase):
     def test_broken_cli_runtime(self):
         self.stub("devcontainer", "exit 127")
         self.assertEqual(self.run_check().returncode, 1)
+
+    def test_incomplete_python_runtime(self):
+        self.stub("python3", 'test "$*" = --version')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Python-Standardbibliothek unvollständig", result.stdout)
 
     def test_shell_only_does_not_call_docker_or_cli(self):
         result = self.run_check("--shell-only")

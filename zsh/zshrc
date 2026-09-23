@@ -101,6 +101,8 @@ export NVM_DIR="$HOME/.nvm"
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # ── Maschinenspezifisches, nicht versioniert ──
+# Auf WSL portable Startfunktionen laden; lokale Definitionen haben danach Vorrang.
+source "${${(%):-%x}:A:h}/wsl.zsh"
 [[ ! -f ~/.zshrc.local ]] || source ~/.zshrc.local
 
 # Muss nach allen Widget- und Completion-Integrationen geladen werden.
