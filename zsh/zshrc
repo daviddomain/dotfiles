@@ -110,3 +110,9 @@ source "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
 # VS Code Remote-Container: Shell-Integration laden, wenn verfügbar.
 [[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+
+# Claude-Werkzeuge (persistent unter ~/.claude, überlebt Rebuilds)
+export PATH="$HOME/.claude/bin:$PATH"
+
+# devcontainer exec setzt nur TERM=xterm, ohne COLORTERM zeichnet Claude Code nur 16 Farben.
+[[ -f /.dockerenv && -z "$COLORTERM" ]] && export COLORTERM=truecolor
