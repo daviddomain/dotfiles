@@ -156,7 +156,9 @@ Grundkonfiguration; die vollständige Prüfung erfolgt mit `doctor.sh`.
 ## Verhalten
 
 - oh-my-zsh, Powerlevel10k und beide zsh-Plugins werden auf die in
-  `versions.env` festgelegten, getesteten Revisionen gesetzt.
+  `versions.env` festgelegten, getesteten Revisionen gesetzt. Lokale Änderungen
+  an getrackten Dateien brechen die Installation ab. Unversionierte Dateien, etwa
+  von Devcontainer-Features angelegte Completions, bleiben unangetastet.
 - `~/.zshrc` und `~/.p10k.zsh` werden verlinkt. Vorhandene reguläre Dateien
   werden zuvor als zeitgestempeltes Backup gesichert.
 - npm-, Node-, Docker- und sudo-Plugins sowie direnv, fzf und gh-Completion

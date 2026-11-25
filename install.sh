@@ -73,7 +73,10 @@ sync_repo() {
   origin="$(git -C "$dest" remote get-url origin 2>/dev/null || true)"
   repo_url_matches "$origin" "$repo" || die "Unerwartetes origin für $dest: ${origin:-<fehlt>}"
 
-  if [[ -n "$(git -C "$dest" status --porcelain --untracked-files=normal)" ]]; then
+  # Nur getrackte Änderungen blockieren. Unversionierte Dateien legen u. a.
+  # Devcontainer-Features an (z. B. completions/_kubectl in oh-my-zsh). Ein
+  # Checkout lässt sie stehen und bricht ab, statt sie zu überschreiben.
+  if [[ -n "$(git -C "$dest" status --porcelain --untracked-files=no)" ]]; then
     die "$dest enthält lokale Änderungen. Bitte zuerst prüfen und sichern."
   fi
 
@@ -81,7 +84,7 @@ sync_repo() {
   if [[ "$current" != "$ref" ]]; then
     log "setze $(basename "$dest") auf ${ref:0:12}"
     git -C "$dest" fetch --quiet --depth=1 origin "$ref"
-    git -C "$dest" checkout --quiet --detach FETCH_HEAD
+    git -C "$dest" checkout --quiet --no-overwrite-ignore --detach FETCH_HEAD
   else
     log "gepinnt: $(basename "$dest") (${ref:0:12})"
   fi

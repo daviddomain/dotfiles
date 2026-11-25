@@ -116,3 +116,8 @@ export PATH="$HOME/.claude/bin:$PATH"
 
 # devcontainer exec setzt nur TERM=xterm, ohne COLORTERM zeichnet Claude Code nur 16 Farben.
 [[ -f /.dockerenv && -z "$COLORTERM" ]] && export COLORTERM=truecolor
+
+# Optional installierte Devcontainer-CLI finden, ohne andere Programme zu verdrängen.
+if [[ -d "$HOME/.devcontainers/bin" ]]; then
+  path+=("$HOME/.devcontainers/bin")
+fi
